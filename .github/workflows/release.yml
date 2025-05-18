@@ -1,0 +1,46 @@
+name: release
+
+on:
+  push:
+    tags:
+      - v*
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 'stable'
+
+      - run: |
+          mkdir -p dist
+          platforms=(
+              "windows-amd64"
+              "linux-amd64"
+              "darwin-amd64"
+              "darwin-arm64"
+          )
+          for platform in "${platforms[@]}"; do
+              GOOS=${platform%-*}
+              GOARCH=${platform#*-}
+              output_name="mergePDFs-${GOOS}-${GOARCH}"
+              if [ "$GOOS" = "windows" ]; then
+                  output_name+=".exe"
+              fi
+              CGO_ENABLED=0 GOOS=$GOOS GOARCH=$GOARCH go build -o "dist/$output_name" mergePDFs.go
+          done
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          body: Release ${{ github.ref_name }}
+          files: |
+            dist/mergePDFs-windows-amd64.exe
+            dist/mergePDFs-linux-amd64
+            dist/mergePDFs-darwin-amd64
+            dist/mergePDFs-darwin-arm64
